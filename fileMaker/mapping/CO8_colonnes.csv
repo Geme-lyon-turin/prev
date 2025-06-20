@@ -1,0 +1,19 @@
+Source,Destination
+Chantier,CO8
+Intitulé_rapport,CO8
+Niveau précision,0
+Année,1
+Mois,2
+Semaine,3
+Jour,4
+Numéro semaine rapport,3
+Numéro semaine donnée,""
+Mois donnée,2
+Quantités extraites,valeur
+Typo courte,NC
+Date de la révision,today
+Date de création BDD,today
+Typo_flux,head-1
+Mode excavation / Evacuation,NC
+Formation,NC
+Pré-classement,head

@@ -1,0 +1,25 @@
+Source,Destination
+Chantier,Chantier
+Intitulé_rapport,Chantier
+Niveau précision,??
+Année,0
+Mois,1
+Semaine,2
+Jour,3
+Numéro semaine rapport,2
+Numéro semaine donnée,""
+Mois donnée,1
+Quantités extraites,valeur
+Typo courte,NC
+Date de la révision,today
+Date de création BDD,today
+Typo_flux,head
+Mode excavation / Evacuation,NC
+Formation,NC
+Pré-classement,head
+TYPO_POINT,Cession
+Code_SITE,site
+Source Origine,site
+code Ouvrage majeur,ouvrage
+code ouvrage mineur,ouvrage
+PK-PM,pk
