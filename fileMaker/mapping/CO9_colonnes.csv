@@ -1,0 +1,19 @@
+Source,Destination
+Chantier,CO9
+Intitulé_rapport,CO9
+Niveau précision,Niveau précision
+Année,Année
+Mois,Mois
+Semaine,Semaine
+Jour,Jour
+Numéro semaine rapport,semaine
+Numéro semaine donnée,""
+Mois donnée,Mois
+Quantités extraites,valeur
+Typo courte,Typo courte
+Date de la révision,today
+Date de création BDD,today
+Typo_flux,colonne_name
+Mode excavation / Evacuation,NC
+Formation,NC
+Pré-classement,colonne_name

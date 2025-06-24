@@ -1,13 +1,13 @@
 Source,Destination
 Chantier,Chantier
-Intitulé_rapport,Chantier
-Niveau précision,??
+Intitulé_rapport,intitulé_rapport
+Niveau précision,jour
 Année,0
 Mois,1
 Semaine,2
 Jour,3
 Numéro semaine rapport,2
-Numéro semaine donnée,""
+Numéro semaine donnée,2+21
 Mois donnée,1
 Quantités extraites,valeur
 Typo courte,NC

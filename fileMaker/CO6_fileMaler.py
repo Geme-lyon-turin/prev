@@ -46,12 +46,21 @@ def formatage_data(df, chantier):
                 for champ_cible, source in mapping_dict.items():
                     if source == "valeur":
                         nouvelle_ligne[champ_cible] = round(valeur, 2)
-                    elif source in ["Chantier", "Intitulé_rapport"]:
+                    elif source == "Chantier":
                         nouvelle_ligne[champ_cible] = chantier
                     elif source == "":
                         nouvelle_ligne[champ_cible] = ""
                     elif source == "today":
                         nouvelle_ligne[champ_cible] = today
+                    elif source == "intitulé_rapport":
+                        try:
+                            annee = date_obj.year
+                            semaine = date_obj.isocalendar().week
+                            nouvelle_ligne[champ_cible] = f"{chantier} {annee} S{semaine+21}"
+                        except Exception as e:
+                            print(f"❌ Erreur génération intitulé_rapport : {e}")
+                            nouvelle_ligne[champ_cible] = ""
+
                     elif source == "head":
                         # récupère la valeur dans la ligne_entete correspondant à la colonne col
                         try:
@@ -66,11 +75,14 @@ def formatage_data(df, chantier):
                         except Exception:
                             nouvelle_ligne[champ_cible] = ""
                     elif source == "site":
-                        try:
-                            idx = df.columns.get_loc(col)
-                            nouvelle_ligne[champ_cible] = site.iloc[idx]
-                        except Exception:
-                            nouvelle_ligne[champ_cible] = ""
+                        if chantier == "CO7":
+                            try:
+                                idx = df.columns.get_loc(col)
+                                nouvelle_ligne[champ_cible] = site.iloc[idx]
+                            except Exception:
+                                nouvelle_ligne[champ_cible] = ""
+                        else:
+                            nouvelle_ligne[champ_cible] = "NC"
                     elif source == "ouvrage":
                         try:
                             idx = df.columns.get_loc(col)
@@ -83,6 +95,9 @@ def formatage_data(df, chantier):
                         nouvelle_ligne[champ_cible] = date_obj.month
                     elif source == "2":
                         nouvelle_ligne[champ_cible] = date_obj.isocalendar().week
+                    elif source == "2+21":
+                        week = date_obj.isocalendar().week
+                        nouvelle_ligne[champ_cible] = f"S{week + 21}"
                     elif source == "3":
                         nouvelle_ligne[champ_cible] = date_obj.day
                     else:
