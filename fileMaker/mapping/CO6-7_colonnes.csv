@@ -6,12 +6,12 @@ Année,0
 Mois,1
 Semaine,2
 Jour,3
-Numéro semaine rapport,2
-Numéro semaine donnée,2+21
+Numéro semaine rapport,s2
+Numéro semaine donnée,2
 Mois donnée,1
 Quantités extraites,valeur
 Typo courte,NC
-Date de la révision,today
+Date de la révision,a completer
 Date de création BDD,today
 Typo_flux,head
 Mode excavation / Evacuation,NC

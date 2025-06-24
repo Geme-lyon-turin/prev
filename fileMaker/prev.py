@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 from datetime import datetime
 import unicodedata
@@ -34,7 +36,9 @@ def CO9():
         return txt.strip()
 
     # 📂 Lecture du fichier Excel source
-    file_path = "./data/Prevision flux MT103 - S06.xlsm"
+    for nom_fichier in os.listdir("./data"):
+        if "MT103" in nom_fichier and nom_fichier:
+            file_path = os.path.join("./data", nom_fichier)
     sheet_name = "Planning besoins t"
 
     df = pd.read_excel(file_path, header=13, sheet_name=sheet_name)
@@ -86,12 +90,46 @@ def CO9():
                             nouvelle_ligne[champ_cible] = ""
                         elif source_str == "today":
                             nouvelle_ligne[champ_cible] = today
+                        elif source_str == "intitulé_rapport":
+                            annee = ""
+                            semaine = ""
+
+                            # Récupération année
+                            if "Année" in row and pd.notna(row["Année"]):
+                                try:
+                                    annee = str(int(float(row["Année"])))
+                                except:
+                                    annee = ""
+
+                            # Récupération semaine +1
+                            if "Semaine" in row and pd.notna(row["Semaine"]):
+                                try:
+                                    semaine_num = int(float(row["Semaine"])) + 1
+                                    semaine = f"S{semaine_num:02d}"
+                                except:
+                                    semaine = ""
+
+                            nouvelle_ligne[champ_cible] = f"CO9 {annee} {semaine}".strip()
+
                         elif source_str in ["head", "colonne_name"]:
                             nouvelle_ligne[champ_cible] = col
                         elif source_str == "Typo courte":
                             col_normalise = normaliser_texte(col)
                             nouvelle_ligne[champ_cible] = typo_courte_dict.get(col_normalise, "")
-
+                        elif source_str == "Année":
+                            nouvelle_ligne[champ_cible] = str(int(row["Année"])) if "Année" in row and pd.notna(
+                                row["Année"]) else ""
+                        elif source_str == "Mois":
+                            nouvelle_ligne[champ_cible] = str(int(row["Mois"])) if "Mois" in row and pd.notna(
+                                row["Mois"]) else ""
+                        elif source_str == "Semaine":
+                            nouvelle_ligne[champ_cible] = str(int(row["Semaine"]+1)) if "Semaine" in row and pd.notna(
+                                row["Semaine"]) else ""
+                        elif source_str == "SemaineS":
+                            nouvelle_ligne[champ_cible] = f"S{int(row['Semaine']+1):02}" if "Semaine" in row and pd.notna(row["Semaine"]) else ""
+                        elif source_str == "Niveau précision":
+                            nouvelle_ligne[champ_cible] = str(
+                                row["Niveau précision"]).strip() if "Niveau précision" in row and pd.notna(row["Niveau précision"]) else ""
                         elif source_str.isdigit():
                             try:
                                 nouvelle_ligne[champ_cible] = str(int(row.iloc[int(source_str)]))
@@ -109,20 +147,23 @@ def CO9():
     # 📤 Export CSV
     df_final = pd.DataFrame(donnees_transformees)
 
-    output_file = f"CO9_BDD_UNIFIEE_{datetime.today().date()}.csv"
-    df_final.to_csv(output_file, index=False)
+    output_file = f"CO9_BDD_UNIFIEE_{datetime.today().date()}.xlsx"
+    df_final.to_excel(output_file, index=False)
 
-    print(f"\n✅ ✅ Fichier BDD_UNIFIEE_CO9 généré ✅ :")
+    print(f"\n✅ Fichier BDD_UNIFIEE_CO9 généré ✅ :")
 
 def CO8():
     # 📂 Charger le fichier brut pour accéder à la ligne 6 (index 5)
-    df_brut = pd.read_excel("./data/T231117_TELT-CO8_prévision-flux - 2025 S07.xlsm", header=None)
+    for nom_fichier in os.listdir("./data"):
+        if "CO8" in nom_fichier and nom_fichier:
+            file_path = os.path.join("./data", nom_fichier)
+    df_brut = pd.read_excel(file_path, header=None)
 
     # 🧠 Extraire la ligne 6 (Typo_Flux) AVANT le vrai header
     typo_flux_ligne = df_brut.iloc[4]
 
     # 📂 Charger le vrai DataFrame avec header à la ligne 7 (index 6)
-    df = pd.read_excel("./data/T231117_TELT-CO8_prévision-flux - 2025 S07.xlsm", header=6)
+    df = pd.read_excel(file_path, header=6)
 
     # 🔁 Charger le mapping des colonnes
     mapping_df = pd.read_csv("mapping/CO8_colonnes.csv", dtype=str)
@@ -154,10 +195,40 @@ def CO8():
                         nouvelle_ligne[champ_cible] = valeur
                     elif source_str == "":
                         nouvelle_ligne[champ_cible] = ""
+                    elif source_str == "intitulé_rapport":
+                        annee = ""
+                        try:
+                            val_annee = row.iloc[1]
+                            if pd.notna(val_annee):
+                                annee = str(int(val_annee))
+                        except:
+                            annee = ""
+
+                        semaine = ""
+                        try:
+                            val_semaine = row.iloc[3]
+                            if pd.notna(val_semaine):
+                                semaine_num = int(val_semaine)
+                                semaine = f"S{semaine_num:02d}"
+                        except:
+                            semaine = ""
+
+                        nouvelle_ligne[champ_cible] = f"CO8 {annee} {semaine}".strip()
+
                     elif source_str == "today":
                         nouvelle_ligne[champ_cible] = today
                     elif source_str == "head":
                         nouvelle_ligne[champ_cible] = col_base
+                    elif source_str == "s3":
+                        try:
+                            val = row.iloc[3]
+                            if pd.notna(val):
+                                semaine_num = int(val)
+                                nouvelle_ligne[champ_cible] = f"S{semaine_num:02}"  # ex: 6 → S06
+                            else:
+                                nouvelle_ligne[champ_cible] = ""
+                        except Exception:
+                            nouvelle_ligne[champ_cible] = ""
                     elif source_str == "1" or source_str == "3":
                         val = row.iloc[int(source_str)]
                         try:
@@ -195,13 +266,16 @@ def CO8():
     df_final = pd.DataFrame(donnees_transformees)
 
     # 💾 Sauvegarde en CSV
-    df_final.to_csv(f"CO8_BDD_UNIFIEE_{datetime.today().date()}.csv", index=False)
+    df_final.to_excel(f"CO8_BDD_UNIFIEE_{datetime.today().date()}.xlsx", index=False)
 
     print("✅ Fichier BDD_UNIFIEE_CO8 généré ✅")
 
 def CO67():
     def get_raw_header(chantier):
-        raw_header = pd.read_excel("./data/CO67_S25-04.xlsx", header=None, sheet_name=chantier)
+        for nom_fichier in os.listdir("./data"):
+            if "CO67" in nom_fichier and nom_fichier:
+                file_path = os.path.join("./data", nom_fichier)
+        raw_header = pd.read_excel(file_path, header=None, sheet_name=chantier)
         # lignes importantes
         ligne_entete = raw_header.iloc[5]  # index 5 = ligne 6 Excel
         pk = raw_header.iloc[4]  # index 3 = ligne 4 Excel
@@ -210,14 +284,20 @@ def CO67():
         return ligne_entete, pk, site, ouvrage
 
     def get_CO6():
-        df = pd.read_excel("./data/CO67_S25-04.xlsx", header=6, sheet_name="CO6")
+        for nom_fichier in os.listdir("./data"):
+            if "CO67" in nom_fichier and nom_fichier:
+                file_path = os.path.join("./data", nom_fichier)
+        df = pd.read_excel(file_path, header=6, sheet_name="CO6")
         df['Jour'] = df["Pré classement\nCorrigé à front"].astype(str).str.strip()
         df['Date'] = pd.to_datetime(df["Unnamed: 1"], errors='coerce')
         df = df[df['Date'].notna()]
         return df
 
     def get_CO7():
-        df = pd.read_excel("./data/CO67_S25-04.xlsx", header=6, sheet_name="CO7")
+        for nom_fichier in os.listdir("./data"):
+            if "CO67" in nom_fichier and nom_fichier:
+                file_path = os.path.join("./data", nom_fichier)
+        df = pd.read_excel(file_path, header=6, sheet_name="CO7")
         df['Jour'] = df["Pré classement\nCorrigé à front"].astype(str).str.strip()
         df['Date'] = pd.to_datetime(df["Unnamed: 1"], errors='coerce')
         df = df[df['Date'].notna()]
@@ -294,9 +374,9 @@ def CO67():
                             nouvelle_ligne[champ_cible] = date_obj.month
                         elif source == "2":
                             nouvelle_ligne[champ_cible] = date_obj.isocalendar().week
-                        elif source == "2+21":
+                        elif source == "s2":
                             week = date_obj.isocalendar().week
-                            nouvelle_ligne[champ_cible] = f"S{week + 21}"
+                            nouvelle_ligne[champ_cible] = f"S{week}"
                         elif source == "3":
                             nouvelle_ligne[champ_cible] = date_obj.day
                         else:
@@ -305,7 +385,7 @@ def CO67():
                     donnees_transformees.append(nouvelle_ligne)
 
         df_final = pd.DataFrame(donnees_transformees)
-        df_final.to_csv(f"{chantier}_BDD_UNIFIEE_{datetime.today().date()}.csv", index=False)
+        df_final.to_excel(f"{chantier}_BDD_UNIFIEE_{datetime.today().date()}.xlsx", index=False)
         print(f"\n✅ Fichier BDD_UNIFIEE_{chantier} généré ✅ :")
 
     df_CO6 = get_CO6()
@@ -316,7 +396,10 @@ def CO67():
 
 def CO5():
     # 📥 Lire toutes les lignes du fichier brut sans header
-    df_brut = pd.read_excel("./data/Planning GEME CO11 maj 20250604.xlsx", header=0,
+    for nom_fichier in os.listdir("./data"):
+        if "Planning GEME" in nom_fichier and nom_fichier:
+            file_path = os.path.join("./data", nom_fichier)
+    df_brut = pd.read_excel(file_path, header=0,
                             sheet_name="planning (t) (façon CO11)")
     # 🧠 Extraire la ligne 5 (index 4) pour les types (typo_flux)
     typo_flux_ligne = df_brut.iloc[4]
@@ -342,7 +425,7 @@ def CO5():
     for _, row in df.iterrows():
         date_val = row.iloc[3]
         if pd.isna(date_val):
-            continue  # 🧼 Ligne ignorée car la date (colonne 3) est vide
+            continue
 
         for col in colonnes_valeurs:
             if col not in df.columns:
@@ -350,37 +433,86 @@ def CO5():
             valeur = row[col]
             if pd.notna(valeur) and isinstance(valeur, (int, float)):
                 nouvelle_ligne = {}
-                col_index = df.columns.get_loc(col)
                 for champ_cible, source in mapping_dict.items():
-                    source = str(source).strip()
+                    source = str(source).strip().lower()
                     if source == "valeur":
                         nouvelle_ligne[champ_cible] = valeur
+                    if source == "co5":
+                        nouvelle_ligne[champ_cible] = "CO5"
                     elif source == "today":
                         nouvelle_ligne[champ_cible] = today
-                    elif source == "3":
-                        date_val = row.iloc[3]
-                        if pd.notna(date_val):
-                            date_val = pd.to_datetime(date_val)
-                            nouvelle_ligne[champ_cible] = date_val.strftime("%d")
-                        else:
-                            continue
+                    elif source == "intitulé_rapport":
+                        annee = ""
+                        semaine = ""
 
+                        # Année depuis colonne 0
+                        try:
+                            val_annee = row.iloc[0]
+                            if pd.notna(val_annee):
+                                annee = str(int(float(val_annee)))
+                        except:
+                            annee = ""
+
+                        # Semaine depuis colonne 2 + 1 (ou pas selon besoin)
+                        try:
+                            val_semaine = row.iloc[2]
+                            if pd.notna(val_semaine):
+                                semaine_clean = re.sub(r"\D", "", str(val_semaine))
+                                semaine = semaine_clean
+                        except:
+                            semaine = ""
+
+                        nouvelle_ligne[champ_cible] = f"CO5 {annee} S{semaine}".strip()
+
+                    elif source == "0":  # Année
+                        try:
+                            annee = int(row.iloc[0])
+                            nouvelle_ligne[champ_cible] = str(annee)
+                        except:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "1":  # Mois
+                        try:
+                            mois = int(pd.to_datetime(row.iloc[3]).month)
+                            nouvelle_ligne[champ_cible] = str(mois).zfill(2)
+                        except:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "2":  # Semaine
+                        semaine = row.iloc[2]
+                        if pd.notna(semaine):
+                            semaine_clean = re.sub(r"\D", "", str(semaine))
+                            nouvelle_ligne[champ_cible] = semaine_clean
+                        else:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "3":  # Jour
+                        try:
+                            jour = int(pd.to_datetime(row.iloc[3]).day)
+                            nouvelle_ligne[champ_cible] = str(jour).zfill(2)
+                        except:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "s2":  # Semaine avec S devant
+                        semaine = row.iloc[2]
+                        if pd.notna(semaine):
+                            match = re.search(r'\d+', str(semaine))
+                            if match:
+                                nouvelle_ligne[champ_cible] = f"S{match.group()}"
+                            else:
+                                nouvelle_ligne[champ_cible] = ""
+                        else:
+                            nouvelle_ligne[champ_cible] = ""
                     elif source == "head":
                         nouvelle_ligne[champ_cible] = col
-                    elif source.isdigit():
-                        val = row.iloc[int(source)]
-                        nouvelle_ligne[champ_cible] = date_val.strftime("%d")
                     elif source == "":
                         nouvelle_ligne[champ_cible] = ""
                     else:
-                        nouvelle_ligne[champ_cible] = source  # Texte brut (NC, CO8, etc.)
+                        nouvelle_ligne[champ_cible] = source  # NC, texte fixe etc.
+
                 donnees_transformees.append(nouvelle_ligne)
 
     # ✅ Créer le DataFrame final
     df_final = pd.DataFrame(donnees_transformees)
 
     # 💾 Export
-    df_final.to_csv(f"CO5_BDD_UNIFIEE_{datetime.today().date()}.csv", index=False)
+    df_final.to_excel(f"CO5_BDD_UNIFIEE_{datetime.today().date()}.xlsx", index=False)
 
     print("✅ Fichier BDD_UNIFIEE_CO5 généré ✅")
 

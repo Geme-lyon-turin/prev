@@ -1,17 +1,17 @@
 Source,Destination
 Chantier,CO9
-Intitulé_rapport,CO9
+Intitulé_rapport,intitulé_rapport
 Niveau précision,Niveau précision
 Année,Année
 Mois,Mois
 Semaine,Semaine
 Jour,Jour
-Numéro semaine rapport,semaine
-Numéro semaine donnée,""
+Numéro semaine rapport,SemaineS
+Numéro semaine donnée,Semaine
 Mois donnée,Mois
 Quantités extraites,valeur
 Typo courte,Typo courte
-Date de la révision,today
+Date de la révision,a completer
 Date de création BDD,today
 Typo_flux,colonne_name
 Mode excavation / Evacuation,NC
