@@ -85,7 +85,7 @@ def CO9():
                         source_str = str(source).strip()
 
                         if source_str == "valeur":
-                            nouvelle_ligne[champ_cible] = round(valeur_num, 2)
+                            nouvelle_ligne[champ_cible] = f"{valeur_num:.2f}".replace(".", ",")
                         elif source_str == "":
                             nouvelle_ligne[champ_cible] = ""
                         elif source_str == "today":
@@ -130,6 +130,17 @@ def CO9():
                         elif source_str == "Niveau précision":
                             nouvelle_ligne[champ_cible] = str(
                                 row["Niveau précision"]).strip() if "Niveau précision" in row and pd.notna(row["Niveau précision"]) else ""
+                        elif source_str == "Jour":
+                            try:
+                                if "Jour" in row and pd.notna(row["Jour"]):
+                                    jour_date = pd.to_datetime(row["Jour"], dayfirst=True, errors="coerce")
+                                    nouvelle_ligne[champ_cible] = jour_date.strftime("%d/%m/%Y") if not pd.isna(
+                                        jour_date) else ""
+                                else:
+                                    nouvelle_ligne[champ_cible] = ""
+                            except Exception as e:
+                                print(f"⛔ Erreur format date 'Jour' : {e}")
+                                nouvelle_ligne[champ_cible] = ""
                         elif source_str.isdigit():
                             try:
                                 nouvelle_ligne[champ_cible] = str(int(row.iloc[int(source_str)]))
@@ -192,7 +203,7 @@ def CO8():
                     col_base = "0/4" if col == "0/4.1" else col
 
                     if source_str == "valeur":
-                        nouvelle_ligne[champ_cible] = valeur
+                        nouvelle_ligne[champ_cible] = f"{valeur:.2f}".replace(".", ",")
                     elif source_str == "":
                         nouvelle_ligne[champ_cible] = ""
                     elif source_str == "intitulé_rapport":
@@ -237,9 +248,10 @@ def CO8():
                             nouvelle_ligne[champ_cible] = ""
                     elif source_str == "4":
                         val = row.iloc[int(source_str)]
+                        print(val)
                         try:
                             if isinstance(val, (pd.Timestamp, datetime)):
-                                nouvelle_ligne[champ_cible] = val.strftime("%d")  # ex: "04"
+                                nouvelle_ligne[champ_cible] = val.strftime("%d/%m/%y")  # ex: "04"
                             else:
                                 # Tente de parser la valeur si ce n'est pas un datetime
                                 date_obj = pd.to_datetime(val)
@@ -324,7 +336,7 @@ def CO67():
 
                     for champ_cible, source in mapping_dict.items():
                         if source == "valeur":
-                            nouvelle_ligne[champ_cible] = round(valeur, 2)
+                            nouvelle_ligne[champ_cible] = f"{valeur:.2f}".replace(".", ",")
                         elif source == "Chantier":
                             nouvelle_ligne[champ_cible] = chantier
                         elif source == "":
@@ -378,7 +390,7 @@ def CO67():
                             week = date_obj.isocalendar().week
                             nouvelle_ligne[champ_cible] = f"S{week}"
                         elif source == "3":
-                            nouvelle_ligne[champ_cible] = date_obj.day
+                            nouvelle_ligne[champ_cible] = date_obj.strftime("%d/%m/%Y")
                         else:
                             nouvelle_ligne[champ_cible] = source
 
@@ -422,6 +434,12 @@ def CO5():
     donnees_transformees = []
     today = datetime.today().strftime("%d/%m/%Y")
 
+    mois_fr_map = {
+        "janvier": 1,"janv": 1,"jan": 1, "février": 2,"fév": 2,"fev": 2, "mars": 3, "avril": 4,"avr": 4,"av": 4,
+        "mai": 5, "juin": 6, "juil": 7,"juillet": 7, "août": 8,
+        "septembre": 9, "sept":9, "octobre": 10, "oct":10, "novembre": 11,"nov": 11, "décembre": 12,"déc": 12,"dec": 12
+    }
+
     for _, row in df.iterrows():
         date_val = row.iloc[3]
         if pd.isna(date_val):
@@ -434,10 +452,9 @@ def CO5():
             if pd.notna(valeur) and isinstance(valeur, (int, float)):
                 nouvelle_ligne = {}
                 for champ_cible, source in mapping_dict.items():
-                    source = str(source).strip().lower()
                     if source == "valeur":
-                        nouvelle_ligne[champ_cible] = valeur
-                    if source == "co5":
+                        nouvelle_ligne[champ_cible] = f"{valeur:.2f}".replace(".", ",")
+                    elif source == "co5":
                         nouvelle_ligne[champ_cible] = "CO5"
                     elif source == "today":
                         nouvelle_ligne[champ_cible] = today
@@ -472,10 +489,15 @@ def CO5():
                             nouvelle_ligne[champ_cible] = ""
                     elif source == "1":  # Mois
                         try:
-                            mois = int(pd.to_datetime(row.iloc[3]).month)
-                            nouvelle_ligne[champ_cible] = str(mois).zfill(2)
+                            mois_str = str(row.iloc[1]).strip().lower()
+                            mois_num = mois_fr_map.get(mois_str, None)
+                            if mois_num:
+                                nouvelle_ligne[champ_cible] = str(mois_num).zfill(2)
+                            else:
+                                nouvelle_ligne[champ_cible] = ""
                         except:
                             nouvelle_ligne[champ_cible] = ""
+
                     elif source == "2":  # Semaine
                         semaine = row.iloc[2]
                         if pd.notna(semaine):
@@ -483,12 +505,24 @@ def CO5():
                             nouvelle_ligne[champ_cible] = semaine_clean
                         else:
                             nouvelle_ligne[champ_cible] = ""
-                    elif source == "3":  # Jour
+                    elif source == "3":
                         try:
-                            jour = int(pd.to_datetime(row.iloc[3]).day)
-                            nouvelle_ligne[champ_cible] = str(jour).zfill(2)
-                        except:
+                            date_val = pd.to_datetime(row.iloc[3], dayfirst=True, errors='coerce')
+                            if pd.isna(date_val):
+                                raise ValueError(f"Date invalide: {row.iloc[3]}")
+                            jour = date_val.day
+                            mois_str = str(row.iloc[1]).strip().lower()
+                            mois = mois_fr_map.get(mois_str)
+                            annee = int(float(row.iloc[0]))
+                            if mois and jour and annee:
+                                date_complete = f"{str(jour-1).zfill(2)}/{str(mois).zfill(2)}/{str(annee)}"
+                            else:
+                                date_complete = ""
+                            nouvelle_ligne[champ_cible] = date_complete
+                        except Exception as e:
+                            print(f"⛔ Erreur date complète : {e}")
                             nouvelle_ligne[champ_cible] = ""
+
                     elif source == "s2":  # Semaine avec S devant
                         semaine = row.iloc[2]
                         if pd.notna(semaine):
