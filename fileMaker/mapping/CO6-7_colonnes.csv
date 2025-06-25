@@ -1,7 +1,7 @@
 Source,Destination
 Chantier,Chantier
 Intitulé_rapport,intitulé_rapport
-Niveau précision,Jour
+Niveau précision,jour
 Année,0
 Mois,1
 Semaine,2
@@ -15,7 +15,7 @@ Date de la révision,a completer
 Date de création BDD,today
 Typo_flux,head
 Mode excavation / Evacuation,NC
-Formation,NC
+Formation,zone
 Pré-classement,head
 TYPO_POINT,Cession
 Code_SITE,site

@@ -169,7 +169,8 @@ def CO8():
         if "CO8" in nom_fichier and nom_fichier:
             file_path = os.path.join("./data", nom_fichier)
     df_brut = pd.read_excel(file_path, header=None)
-
+    df_mode = df_brut.iloc[5]  # ✅ ligne avec les infos de mode d'excavation et d'évacuation
+    print(df_mode)
     # 🧠 Extraire la ligne 6 (Typo_Flux) AVANT le vrai header
     typo_flux_ligne = df_brut.iloc[4]
 
@@ -193,7 +194,7 @@ def CO8():
     for _, row in df.iterrows():
         for col in colonnes_valeurs:
             valeur = row[col]
-            if pd.notna(valeur) and isinstance(valeur, (int, float)):
+            if pd.notna(valeur) and isinstance(valeur, (int, float)) and valeur > 0:
                 nouvelle_ligne = {}
                 numero_colonne = df.columns.get_loc(col)
                 for champ_cible, source in mapping_dict.items():
@@ -229,7 +230,46 @@ def CO8():
                     elif source_str == "today":
                         nouvelle_ligne[champ_cible] = today
                     elif source_str == "head":
-                        nouvelle_ligne[champ_cible] = col_base
+                        # Aller chercher la valeur de head-1 (comme dans "prod")
+                        i = 0
+                        valeur_typo = ""
+                        while (numero_colonne - i) >= 0:
+                            candidat = typo_flux_ligne[numero_colonne - i]
+                            if pd.notna(candidat) and str(candidat).strip() != "":
+                                valeur_typo = candidat
+                                break
+                            i += 1
+
+                        # Condition : si head-1 == "Production MATEX (tonnes)"
+                        if str(valeur_typo).strip() == "Production MATEX (tonnes)":
+                            nouvelle_ligne[champ_cible] = "CL2"
+                        else:
+                            if col_base == "CL1.1" or col_base == "CL1.2" or col_base == "CL1.3" or col_base == "CL1.4":
+                                col_base = "CL1"
+                            if col_base == "CL2.1" or col_base == "CL2.2" or col_base == "CL2.3" or col_base == "CL2.4":
+                                col_base = "CL2"
+                            if col_base == "0/4.1" or col_base == "CL2.2" or col_base == "CL2.3" or col_base == "CL2.4":
+                                col_base = "0/4"
+                            if col_base == "CL3a.1" or col_base == "CL3a.2":
+                                col_base = "CL3a"
+                            if col_base == "CL3b.1" or col_base == "CL3b.2":
+                                col_base = "CL3b"
+                            nouvelle_ligne[champ_cible] = col_base
+                    elif source_str == "prod":
+                        i = 0
+                        valeur_typo = ""
+                        while (numero_colonne - i) >= 0:
+                            candidat = typo_flux_ligne[numero_colonne - i]
+                            if pd.notna(candidat) and str(candidat).strip() != "":
+                                valeur_typo = candidat
+                                break
+                            i += 1
+
+                            # Si head-1 vaut "Production MATEX (tonnes)", on garde col_base
+                        if str(valeur_typo).strip() == "Production MATEX (tonnes)":
+                            nouvelle_ligne[champ_cible] = col_base
+                        else:
+                            nouvelle_ligne[champ_cible] = "NC"
                     elif source_str == "s3":
                         try:
                             val = row.iloc[3]
@@ -248,7 +288,6 @@ def CO8():
                             nouvelle_ligne[champ_cible] = ""
                     elif source_str == "4":
                         val = row.iloc[int(source_str)]
-                        print(val)
                         try:
                             if isinstance(val, (pd.Timestamp, datetime)):
                                 nouvelle_ligne[champ_cible] = val.strftime("%d/%m/%y")  # ex: "04"
@@ -268,6 +307,15 @@ def CO8():
                                 break
                             i += 1
                         nouvelle_ligne[champ_cible] = valeur_typo
+                    elif source_str == "evac":
+                        try:
+                            val_mode = df_mode[numero_colonne]
+                            if pd.notna(val_mode) and str(val_mode).strip() != "":
+                                nouvelle_ligne[champ_cible] = str(val_mode).strip()
+                            else:
+                                nouvelle_ligne[champ_cible] = "NC"
+                        except:
+                            nouvelle_ligne[champ_cible] = "NC"
                     elif source_str.isdigit():
                         nouvelle_ligne[champ_cible] = row.iloc[int(source_str)]
                     else:
@@ -288,12 +336,12 @@ def CO67():
             if "CO67" in nom_fichier and nom_fichier:
                 file_path = os.path.join("./data", nom_fichier)
         raw_header = pd.read_excel(file_path, header=None, sheet_name=chantier)
-        # lignes importantes
-        ligne_entete = raw_header.iloc[5]  # index 5 = ligne 6 Excel
-        pk = raw_header.iloc[4]  # index 3 = ligne 4 Excel
-        site = raw_header.iloc[1]  # index 0 = ligne 1 Excel
-        ouvrage = raw_header.iloc[2]  # index 1 = ligne 2 Excel
-        return ligne_entete, pk, site, ouvrage
+        ligne_entete = raw_header.iloc[5]
+        pk = raw_header.iloc[4]
+        zone = raw_header.iloc[3]  # Ajout ici ✅
+        site = raw_header.iloc[1]
+        ouvrage = raw_header.iloc[2]
+        return ligne_entete, pk, site, ouvrage, zone
 
     def get_CO6():
         for nom_fichier in os.listdir("./data"):
@@ -320,7 +368,7 @@ def CO67():
         mapping_df = pd.read_csv("mapping/CO6-7_colonnes.csv")
         mapping_dict = dict(zip(mapping_df["Source"], mapping_df["Destination"]))
 
-        ligne_entete, pk, site, ouvrage = get_raw_header(chantier)
+        ligne_entete, pk, site, ouvrage, zone = get_raw_header(chantier)
 
         today = datetime.today().strftime("%d/%m/%Y")
         donnees_transformees = []
@@ -374,6 +422,12 @@ def CO67():
                                     nouvelle_ligne[champ_cible] = ""
                             else:
                                 nouvelle_ligne[champ_cible] = "NC"
+                        elif source == "zone":
+                            try:
+                                idx = df.columns.get_loc(col)
+                                nouvelle_ligne[champ_cible] = zone.iloc[idx]  # ✅ Remplace site par zone
+                            except Exception:
+                                nouvelle_ligne[champ_cible] = ""
                         elif source == "ouvrage":
                             try:
                                 idx = df.columns.get_loc(col)
