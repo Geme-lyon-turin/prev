@@ -1,5 +1,8 @@
 import os
+from calendar import monthrange
 
+import openpyxl
+from openpyxl.utils import get_column_letter, column_index_from_string
 import pandas as pd
 from datetime import datetime
 import unicodedata
@@ -76,6 +79,9 @@ def CO9():
             if col not in df.columns:
                 print(f"⚠️ Colonne absente : {col}")
                 continue
+            if col == "TOTAL":
+                continue
+
             try:
                 valeur_num = float(str(valeur_brute).replace(",", "."))
                 if valeur_num > 0:
@@ -134,12 +140,16 @@ def CO9():
                             try:
                                 if "Jour" in row and pd.notna(row["Jour"]):
                                     jour_date = pd.to_datetime(row["Jour"], dayfirst=True, errors="coerce")
-                                    nouvelle_ligne[champ_cible] = jour_date.strftime("%d/%m/%Y") if not pd.isna(
-                                        jour_date) else ""
+                                    if pd.isna(jour_date):
+                                        nouvelle_ligne[champ_cible] = ""
+                                    else:
+                                        excel_epoch = datetime(1899, 12, 30)
+                                        jours_excel = (jour_date - excel_epoch).days
+                                        nouvelle_ligne[champ_cible] = jours_excel
                                 else:
                                     nouvelle_ligne[champ_cible] = ""
                             except Exception as e:
-                                print(f"⛔ Erreur format date 'Jour' : {e}")
+                                print(f"⛔ Erreur conversion Excel numérique 'Jour' : {e}")
                                 nouvelle_ligne[champ_cible] = ""
                         elif source_str.isdigit():
                             try:
@@ -170,7 +180,7 @@ def CO8():
             file_path = os.path.join("./data", nom_fichier)
     df_brut = pd.read_excel(file_path, header=None)
     df_mode = df_brut.iloc[5]  # ✅ ligne avec les infos de mode d'excavation et d'évacuation
-    print(df_mode)
+
     # 🧠 Extraire la ligne 6 (Typo_Flux) AVANT le vrai header
     typo_flux_ligne = df_brut.iloc[4]
 
@@ -289,12 +299,18 @@ def CO8():
                     elif source_str == "4":
                         val = row.iloc[int(source_str)]
                         try:
+                            # Tente de convertir en datetime
                             if isinstance(val, (pd.Timestamp, datetime)):
-                                nouvelle_ligne[champ_cible] = val.strftime("%d/%m/%y")  # ex: "04"
+                                date_obj = val
                             else:
-                                # Tente de parser la valeur si ce n'est pas un datetime
-                                date_obj = pd.to_datetime(val)
-                                nouvelle_ligne[champ_cible] = date_obj.strftime("%d")
+                                date_obj = pd.to_datetime(val, dayfirst=True, errors="coerce")
+
+                            if pd.isna(date_obj):
+                                nouvelle_ligne[champ_cible] = ""
+                            else:
+                                excel_epoch = datetime(1899, 12, 30)
+                                jours_excel = (date_obj - excel_epoch).days
+                                nouvelle_ligne[champ_cible] = jours_excel
                         except Exception:
                             nouvelle_ligne[champ_cible] = ""
                     elif source_str == "head-1":
@@ -306,6 +322,11 @@ def CO8():
                                 valeur_typo = candidat
                                 break
                             i += 1
+                        # Trouver l'index du premier caractère ')'
+                        index = valeur_typo.find(')')
+                        # Si un caractère ')' est trouvé, tronquer la chaîne
+                        if index != -1:
+                            valeur_typo = valeur_typo[:index + 1]
                         nouvelle_ligne[champ_cible] = valeur_typo
                     elif source_str == "evac":
                         try:
@@ -444,7 +465,15 @@ def CO67():
                             week = date_obj.isocalendar().week
                             nouvelle_ligne[champ_cible] = f"S{week}"
                         elif source == "3":
-                            nouvelle_ligne[champ_cible] = date_obj.strftime("%d/%m/%Y")
+                            try:
+                                if isinstance(date_obj, (pd.Timestamp, datetime)):
+                                    excel_epoch = datetime(1899, 12, 30)
+                                    jours_excel = (date_obj - excel_epoch).days
+                                    nouvelle_ligne[champ_cible] = jours_excel
+                                else:
+                                    nouvelle_ligne[champ_cible] = ""
+                            except Exception:
+                                nouvelle_ligne[champ_cible] = ""
                         else:
                             nouvelle_ligne[champ_cible] = source
 
@@ -465,9 +494,8 @@ def CO5():
     for nom_fichier in os.listdir("./data"):
         if "Planning GEME" in nom_fichier and nom_fichier:
             file_path = os.path.join("./data", nom_fichier)
-    df_brut = pd.read_excel(file_path, header=0,
-                            sheet_name="planning (t) (façon CO11)")
-    # 🧠 Extraire la ligne 5 (index 4) pour les types (typo_flux)
+    df_brut = pd.read_excel(file_path, header=0, sheet_name="planning (t) (façon CO11)")
+
     typo_flux_ligne = df_brut.iloc[4]
 
     # 🏷️ Extraire la ligne 6 (index 5) pour les noms de colonnes
@@ -493,6 +521,34 @@ def CO5():
         "mai": 5, "juin": 6, "juil": 7,"juillet": 7, "août": 8,
         "septembre": 9, "sept":9, "octobre": 10, "oct":10, "novembre": 11,"nov": 11, "décembre": 12,"déc": 12,"dec": 12
     }
+
+    def obtenir_date_excel(jour, mois, annee):
+        """
+        Renvoie la date Excel (numérique) en soustrayant 1 jour à une date donnée.
+        Si le jour vaut 1, recule d'un mois et prend le dernier jour du mois précédent.
+        """
+        try:
+            jour = int(jour)
+            mois = int(mois)
+            annee = int(annee)
+
+            if jour > 1:
+                date_corrigee = datetime(annee, mois, jour - 1)
+            else:
+                if mois == 1:
+                    mois = 12
+                    annee -= 1
+                else:
+                    mois -= 1
+                dernier_jour = monthrange(annee, mois)[1]
+                date_corrigee = datetime(annee, mois, dernier_jour)
+
+            excel_epoch = datetime(1899, 12, 30)
+            return (date_corrigee - excel_epoch).days
+
+        except Exception as e:
+            print(f"⛔ Erreur dans 'obtenir_date_excel' : {e}")
+            return ""
 
     for _, row in df.iterrows():
         date_val = row.iloc[3]
@@ -569,12 +625,12 @@ def CO5():
                             mois = mois_fr_map.get(mois_str)
                             annee = int(float(row.iloc[0]))
                             if mois and jour and annee:
-                                date_complete = f"{str(jour-1).zfill(2)}/{str(mois).zfill(2)}/{str(annee)}"
+                                jours_excel = obtenir_date_excel(jour, mois, annee)
+                                nouvelle_ligne[champ_cible] = jours_excel
                             else:
-                                date_complete = ""
-                            nouvelle_ligne[champ_cible] = date_complete
+                                nouvelle_ligne[champ_cible] = ""
                         except Exception as e:
-                            print(f"⛔ Erreur date complète : {e}")
+                            print(f"⛔ Erreur date complète (Excel) : {e}")
                             nouvelle_ligne[champ_cible] = ""
 
                     elif source == "s2":  # Semaine avec S devant
@@ -604,19 +660,230 @@ def CO5():
 
     print("✅ Fichier BDD_UNIFIEE_CO5 généré ✅")
 
+def CO6_new(chantier="CO67", mapping_path="mapping/CO6_new_colonnes.csv"):
+    # 🔍 Cherche le bon fichier
+    for nom_fichier in os.listdir("./data"):
+        if "TELT_CO67" in nom_fichier and "lock" not in nom_fichier:
+            file_path = os.path.join("./data", nom_fichier)
+            break
+    else:
+        print("❌ Fichier CO67 introuvable.")
+        return
+
+    print(f"📄 Fichier trouvé : {file_path}")
+
+    # 🔍 Lecture brute pour entêtes utiles
+    df_raw = pd.read_excel(file_path, sheet_name="Prévision_hebdo", header=None)
+    ligne_cession = df_raw.iloc[2]
+    ligne_mode = df_raw.iloc[5]
+    ligne_formation = df_raw.iloc[7]
+    ligne_ouvrage = df_raw.iloc[6]
+    ligne_pk = df_raw.iloc[8]
+    ligne_head = df_raw.iloc[9]
+
+    # 🧠 Lecture des vraies données
+    df = pd.read_excel(file_path, sheet_name="Prévision_hebdo", header=9)
+
+    # 📅 Création colonne Date à partir d'année, mois, jour
+    try:
+        df["Date"] = pd.to_datetime(
+            df.iloc[:, 1].astype(str) + "-" +
+            df.iloc[:, 2].astype(str).str.zfill(2) + "-" +
+            df.iloc[:, 4].astype(str).str.extract(r'(\d{1,2})')[0].str.zfill(2),
+            format="%Y-%m-%d",  # <- Ajout du format explicite
+            errors="coerce"
+        )
+        df["Date"] = df["Date"].dt.date  # Pour enlever l'heure
+    except Exception as e:
+        print(f"❌ Erreur génération date : {e}")
+        return
+
+    print("✅ Colonne 'Date' générée.")
+
+    # 🗂️ Chargement du mapping
+    mapping_df = pd.read_csv(mapping_path)
+    mapping_dict = dict(zip(mapping_df["Destination"], mapping_df["Source"]))
+
+    colonnes_valeurs = [
+        'Cl1', 'Cl2', 'Cl3', 'Cl1s', 'cl3a', 'Cl3b',
+        'sable 0/4mm', 'granulats 4/8mm', 'granulats 8/16mm',
+        'sable 0/4CLmm', 'granulats 10/20mm',
+        'CR', 'Fiche n°7 IG9091 SNCF', 'Fiche n°9 IG9091 SNCF',
+        "SETRA Note d'information n°34", 'CDF', 'PST IG 90260',
+        'ZH simplifiée C0 Phi30°'
+    ]  # À adapter selon ton CSV mapping
+
+    colonnes_utiles = [col for col in df.columns if any(val.lower() in col.lower() for val in colonnes_valeurs)]
+
+    today = datetime.today().strftime("%d/%m/%Y")
+    donnees_finales = []
+
+    # Exemple dans ta boucle principale
+    for i, row in df.iterrows():
+        date_obj = row["Date"]
+        if pd.isna(row.iloc[1]):  # Si colonne Année vide, on saute
+            continue
+        colonnes_valeurs_trouvees = [col for col in colonnes_utiles if pd.notna(row[col])]
+        col_valeur = colonnes_valeurs_trouvees[0] if colonnes_valeurs_trouvees else None
+        idx_valeur = df.columns.get_loc(col_valeur) if col_valeur else None
+        for col in colonnes_utiles:
+            valeur = row[col]
+            if pd.notna(valeur) and valeur > 0:
+                idx_col = df.columns.get_loc(col)
+                nouvelle_ligne = {}
+                for champ_cible, source in mapping_dict.items():
+                    if source == "valeur":
+                        try:
+                            val_float = float(valeur)
+                            val_formate = f"{val_float:.5f}".replace(".", ",")
+                            val_formate = val_formate.rstrip('0').rstrip(',') if ',' in val_formate else val_formate
+                            nouvelle_ligne[champ_cible] = val_formate
+                        except:
+                            nouvelle_ligne[champ_cible] = str(valeur).replace(".", ",")
+
+                    elif source == "Chantier":
+                        nouvelle_ligne[champ_cible] = chantier
+                    elif source == "today":
+                        nouvelle_ligne[champ_cible] = today
+                    elif source == "intitulé_rapport":
+                        if pd.isna(date_obj):
+                            nouvelle_ligne[champ_cible] = ""
+                        else:
+                            try:
+                                # S’il s’agit d’un datetime.date ou datetime.datetime, isocalendar() renvoie un tuple (année, semaine, jour)
+                                semaine = date_obj.isocalendar()[1]  # index 1 = semaine ISO
+                                annee = date_obj.year
+                                nouvelle_ligne[champ_cible] = f"{chantier} {annee} S{semaine}"
+                            except Exception as e:
+                                print(f"⚠️ Erreur intitulé_rapport : {e} avec date {date_obj}")
+                                nouvelle_ligne[champ_cible] = ""
+                    elif source == "head":
+                        if idx_col is not None:
+                            nouvelle_ligne[champ_cible] = ligne_head.iloc[idx_col]
+                        else:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "Intitulé_rapport":
+                        try:
+                            annee = date_obj.year
+                            semaine = date_obj.isocalendar().week
+                            nouvelle_ligne[champ_cible] = f"{chantier} {annee} S{semaine}"
+                        except:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "pk":
+                        idx = df.columns.get_loc(col)
+                        nouvelle_ligne[champ_cible] = ligne_pk.iloc[idx]
+                    elif source == "evac":
+                        idx = df.columns.get_loc(col)
+                        nouvelle_ligne[champ_cible] = ligne_mode.iloc[idx]
+                    elif source == "formation":
+                        idx = df.columns.get_loc(col)
+                        nouvelle_ligne[champ_cible] = ligne_formation.iloc[idx]
+
+                    elif source == "NC":
+                        nouvelle_ligne[champ_cible] = "NC"
+                    elif source == "S3":
+                        val = row.iloc[3]
+                        if pd.isna(val):
+                            nouvelle_ligne[champ_cible] = ""
+                        else:
+                            nouvelle_ligne[champ_cible] = f"S{int(val)}"
+                    elif source == "cession":
+                        if idx_col is not None:
+                            col_letter = get_column_letter(idx_col + 1)  # +1 car Excel commence à 1
+                            col_index = column_index_from_string(col_letter)
+
+                            if 8 <= col_index <= 14:  # H (8) à N (14)
+                                nouvelle_ligne[champ_cible] = "Production"
+                            elif 24 <= col_index <= 54:  # X (24) à BB (54)
+                                nouvelle_ligne[champ_cible] = "Cession"
+                            elif 56 <= col_index <= 87:  # BD (56) à CI (87)
+                                nouvelle_ligne[champ_cible] = "Livraison"
+                            else:
+                                nouvelle_ligne[champ_cible] = ""
+                        else:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source == "Code_SITE":
+                        code_site = ""
+                        noText = ["Point de production","Point de cession","Point de livraison"]
+                        if idx_col is not None:
+                            for decalage in range(-4, 3):  # de -4 à +2 inclus
+                                index_recherche = idx_col + decalage
+                                print(index_recherche)
+                                if 0 <= index_recherche < len(ligne_cession):  # s'assurer que l'index est valide
+                                    valeur = ligne_cession.iloc[index_recherche]
+                                    if pd.notna(valeur) and str(valeur).strip() != "" and valeur not in noText:
+                                        code_site = valeur
+                                        break
+                        nouvelle_ligne[champ_cible] = code_site
+                    elif source == "pk":
+                        if idx_col is not None:
+                            nouvelle_ligne[champ_cible] = ligne_pk.iloc[idx_col]
+                        else:
+                            nouvelle_ligne[champ_cible] = ""
+                    elif "ouvrage" in source:
+                        if idx_col is not None:
+                            # Récupère la valeur de la cellule, qui contient plusieurs lignes séparées par '\n'
+                            valeur = ligne_ouvrage.iloc[idx_col]
+                            lignes = valeur.split("\n")
+
+                            if "majeur" in source:
+                                # Prend la première ligne si elle existe
+                                nouvelle_ligne[champ_cible] = lignes[0] if lignes else ""
+                            elif "mineur" in source:
+                                # Prend la deuxième ligne si elle existe
+                                nouvelle_ligne[champ_cible] = lignes[1] if len(lignes) > 1 else ""
+                            else:
+                                # Si le type n'est ni majeur ni mineur, met une chaîne vide par défaut
+                                nouvelle_ligne[champ_cible] = ""
+                        else:
+                            # Si l'index de la colonne est None, on met vide pour éviter les erreurs
+                            nouvelle_ligne[champ_cible] = ""
+                    elif source.isdigit():
+                        val = row.iloc[int(source)]
+                        if source == "4":
+                            try:
+                                if pd.notna(val):
+                                    # Conversion explicite en datetime
+                                    date_obj = pd.to_datetime(val, dayfirst=True, errors="coerce")
+                                    if pd.isna(date_obj):
+                                        raise ValueError(f"Date invalide: {val}")
+
+                                    # Conversion en valeur numérique Excel (base 1899-12-30)
+                                    excel_base = datetime(1899, 12, 30)
+                                    val = (date_obj - excel_base).days
+                                else:
+                                    val = ""
+                            except Exception as e:
+                                print(f"⛔ Erreur date Excel (source == '4') : {e}")
+                                val = ""
+
+                        nouvelle_ligne[champ_cible] = val
+                    else:
+                        nouvelle_ligne[champ_cible] = source
+
+                donnees_finales.append(nouvelle_ligne)
+
+    # 📤 Export
+    df_final = pd.DataFrame(donnees_finales)
+    nom_fichier = f"CO6NEW_BDD_UNIFIEE_{datetime.today().date()}.xlsx"
+    df_final.to_excel(nom_fichier, index=False)
+    print(f"\n✅ Fichier généré : {nom_fichier}")
+
+
 # Création de la fenêtre principale
 fenetre = tk.Tk()
 fenetre.title("Interface Fonctions")
-fenetre.geometry("400x300")
+fenetre.geometry("400x500")
 
 # Boutons
-tk.Button(fenetre, text="Exécuter CO8", command=CO8).pack(pady=5)
-tk.Button(fenetre, text="Exécuter CO67", command=CO67).pack(pady=5)
 tk.Button(fenetre, text="Exécuter CO5", command=CO5).pack(pady=5)
+tk.Button(fenetre, text="Exécuter CO67", command=CO67).pack(pady=5)
+tk.Button(fenetre, text="Exécuter CO8", command=CO8).pack(pady=5)
 tk.Button(fenetre, text="Exécuter CO9", command=CO9).pack(pady=5)
+tk.Button(fenetre, text="Exécuter CO67_new", command=CO6_new).pack(pady=5)
 
 # Zone de texte pour afficher les résultats
-zone_texte = tk.Text(fenetre, height=8, width=50)
+zone_texte = tk.Text(fenetre, height=20, width=50)
 zone_texte.pack(pady=10)
 
 # Redirection du print vers la zone de texte
